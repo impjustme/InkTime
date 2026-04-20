@@ -55,14 +55,6 @@ InkTime este un smartwatch open-source cu consum redus, construit in jurul micro
         |
         +--> boost / gate drive pentru EPD:
              MOSFET-uri + diode Schottky + inductoare + condensatori
-
-Alte blocuri:
-- SWD debug header (Tag-Connect TC2030-IDC)
-- 3 butoane tactile
-- Cristal 32 MHz
-- Cristal 32.768 kHz
-- Antena 2.4 GHz + retea de matching RF
-- Test pad-uri pentru 3V3, GND, VBAT, SWD, RESET, SWO etc.
 ```
 
 ## BoM
@@ -94,28 +86,27 @@ Alte blocuri:
 ## Descriere hardware
 1. Microcontroller principal
 
-Sistemul este construit in jurul nRF52840, un microcontroller ARM Cortex-M4F cu BLE 5.x, suficient de performant pentru gestionarea afisajului e-paper, a senzorilor, a starii de baterie si a interfetei de utilizator. Alegerea lui permite:
+Sistemul este construit in jurul nRF52840, un microcontroller ARM Cortex-M4F cu BLE 5.x, suficient de performant pentru gestionarea afisajului e-paper, a senzorilor, a starii de baterie si a interfetei de utilizator.Pe partea de clock sunt folosite doua surse:
 
-conectivitate BLE nativa
-consum redus in sleep
-numar mare de GPIO-uri
-suport pentru SPI, I2C, USB si SWD
+-un cristal de 32 MHz pentru clock-ul principal.
 
-Pe partea de clock sunt folosite doua surse:
+-un cristal de 32.768 kHz pentru RTC si scenarii low-power.
 
-un cristal de 32 MHz pentru clock-ul principal
-un cristal de 32.768 kHz pentru RTC si scenarii low-power
 2. Alimentare si management energetic
+
 
 Arhitectura de alimentare este impartita in trei blocuri.
 
 BQ25180YBGR
+
 Gestioneaza incarcarea bateriei Li-Po din USB-C. Intrarea de 5 V vine din VBUS, iar iesirea este conectata la bateria de o celula. Acest circuit este configurabil si monitorizabil, iar pinul de interrupt este dus catre MCU.
 
 MAX17048
+
 Monitorizeaza tensiunea si starea bateriei. Acesta comunica pe I2C cu microcontrollerul si expune un semnal de alerta pentru praguri critice sau schimbari de stare.
 
 RT6160AWSC
+
 Converteaza tensiunea bateriei intr-o alimentare stabila pentru sistemul digital. Acesta este blocul care alimenteaza rail-urile de lucru ale placii si perifericele sale.
 
 In proiect, bateria nu este conectata printr-un conector JST clasic, ci direct la doua test pad-uri dedicate de pe PCB, una pentru VBAT si una pentru GND, pentru economie de spatiu.
@@ -125,16 +116,23 @@ In proiect, bateria nu este conectata printr-un conector JST clasic, ci direct l
 Afisajul utilizat este un e-paper de 1.54", conectat printr-un conector FPC. Comunicatia cu MCU se face in principal prin SPI, iar pentru control sunt folosite si semnale GPIO dedicate:
 
 CS
+
 DC
+
 RST
+
 BUSY
 
 Deoarece e-paper-ul necesita tensiuni si secvente specifice, exista un etaj discret dedicat pentru generarea si comutarea semnalelor de alimentare ale panelului, construit cu:
 
 MOSFET-uri
+
 diode Schottky
+
 inductoare
+
 condensatori de filtrare si bootstrap
+
 4. IMU
 
 BMA423 este accelerometrul triaxial folosit pentru detectie de miscare, pasi, gesturi si evenimente de trezire. Comunicatia se face pe I2C, iar semnalele de intrerupere sunt aduse pe GPIO-uri separate ale MCU-ului pentru reactii rapide si trezire din moduri low-power.
@@ -190,36 +188,31 @@ Layer stack
 Structura folosita:
 
 Top - componente, rutare semnale, poligoane GND locale
+
 Route2 - plan principal de masa / referinta
+
 Route15 - rutare interna suplimentara pentru semnale si distributie
+
 Bottom - rutare suplimentara si zone GND
 
-Aceasta structura a fost aleasa pentru:
 
-compactarea rutarii in jurul MCU-ului si a circuitelor WLCSP/BGA
-pastrarea unui plan de masa stabil pentru RF si return paths
-separarea mai buna a rutelor critice fata de distributia de alimentare
-Design log
-Decizii importante
-Toate componentele au fost plasate pe TOP, pentru a respecta constrangerile mecanice si de asamblare.
-Antena a fost pozitionata la marginea placii, cu zona de keepout sub ea.
-Condensatoarele de decuplare au fost puse cat mai aproape de pinii de alimentare ai blocurilor principale.
-Test pad-urile au fost etichetate clar pentru debug si conectarea bateriei.
-Exceptii acceptate
+## Design log
 
-In procesul de layout au fost acceptate cateva abateri locale, verificate manual.
+In procesul de layout au fost acceptate:
 
-1. SMD - via / SMD - pad proximity
-In zone foarte dense, in special langa capsule mici si in fanout-ul unor componente fine-pitch, anumite vias sau trasee ajung foarte aproape de pad-uri SMD. Aceste cazuri au fost inspectate manual si au fost pastrate acolo unde nu produceau scurt, iar rerutarea ar fi afectat mai mult restul designului.
+1. SMD - via / pin overlap
 
-2. Copper width warnings
+In zone foarte dense, in special langa capsule mici si in fanout-ul unor componente fine-pitch, anumite vias au fost plasate direct pe pini ai componentelor.
+
+3. Copper width warnings
+
 Pe rail-urile de putere s-a urmarit 0.3 mm acolo unde spatiul permite. In fanout-uri foarte scurte, imediat la iesirea din pini foarte mici sau intre componente apropiate, au ramas segmente locale mai inguste. Distributia principala de putere a fost mentinuta lata, iar exceptiile sunt limitate la zonele de iesire.
 
-3. Board outline / edge related warnings
+4. Board outline / edge related warnings
+
 Elementele de interfata ale produsului, in special anumite butoane si zona conectorului, au fost aliniate mecanic cu produsul final. Acolo unde apar avertizari de proximitate fata de conturul placii, acestea au fost evaluate din punct de vedere mecanic si acceptate daca nu afecteaza functionalitatea.
 
-4. Unghiuri drepte locale
+5. Unghiuri drepte locale
+   
 Desi rutarea a fost facuta preponderent fara colturi de 90 de grade, au ramas cateva unghiuri drepte locale in zone foarte aglomerate. Acestea au fost mentinute doar acolo unde alternativele cresteau numarul de vias sau complicau excesiv rutarea.
 
-5. Via stitching si ground return
-Au fost distribuite vias de masa intre straturi pentru a imbunatati continuitatea planurilor GND si comportamentul la frecventa inalta, cu atentie crescuta in zona radio.
